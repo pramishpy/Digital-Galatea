@@ -1,0 +1,5 @@
+transformers
+nltk
+google-generativeai
+python-dotenv
+flask

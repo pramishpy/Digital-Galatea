@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Galatea AI</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="chat-container">
+        <div class="header">
+            <h1>Galatea AI</h1>
+            <div class="avatar-container">
+                <div id="avatar" class="avatar circle">
+                    <div class="face">
+                        <div class="eyes"></div>
+                        <div class="mouth"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="emotion-bars">
+                <div class="emotion-bar">
+                    <span>Joy</span>
+                    <div class="bar-container">
+                        <div id="joy-bar" class="bar"></div>
+                    </div>
+                </div>
+                <div class="emotion-bar">
+                    <span>Sadness</span>
+                    <div class="bar-container">
+                        <div id="sadness-bar" class="bar"></div>
+                    </div>
+                </div>
+                <div class="emotion-bar">
+                    <span>Anger</span>
+                    <div class="bar-container">
+                        <div id="anger-bar" class="bar"></div>
+                    </div>
+                </div>
+                <div class="emotion-bar">
+                    <span>Fear</span>
+                    <div class="bar-container">
+                        <div id="fear-bar" class="bar"></div>
+                    </div>
+                </div>
+                <div class="emotion-bar">
+                    <span>Curiosity</span>
+                    <div class="bar-container">
+                        <div id="curiosity-bar" class="bar"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="chat-messages" id="chat-messages">
+            <div class="message system">
+                <div class="message-content">
+                    Hello! I'm Galatea. How can I help you today?
+                </div>
+            </div>
+        </div>
+        
+        <div class="status-container" id="status-container">
+            Connection status will appear here
+        </div>
+        
+        <div class="chat-input-container">
+            <textarea id="user-input" placeholder="Type a message..." rows="1"></textarea>
+            <button id="send-button" title="Send message" aria-label="Send message">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path>
+                </svg>
+            </button>
+        </div>
+    </div>
+    
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>
