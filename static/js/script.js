@@ -193,6 +193,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 } else if (data.is_initialized) {
                     // Initialization complete
                     showStatusMessage('Galatea AI is ready!', false);
+                    // Start polling for avatar updates when initialized
+                    startAvatarPolling();
                     setTimeout(() => {
                         statusContainer.style.display = 'none';
                     }, 3000);
@@ -205,5 +207,69 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.error('Error checking status:', error);
                 showStatusMessage('Error checking Galatea status', true);
             });
+    }
+
+    // Add avatar polling functionality for more responsive updates
+    let avatarPollInterval;
+    let lastAvatarShape = '';
+
+    function startAvatarPolling() {
+        // Clear any existing interval
+        if (avatarPollInterval) {
+            clearInterval(avatarPollInterval);
+        }
+
+        // Poll every 1 second
+        avatarPollInterval = setInterval(pollAvatarState, 1000);
+        console.log("Avatar polling started");
+    }
+
+    function pollAvatarState() {
+        fetch('/api/avatar')
+            .then(response => response.json())
+            .then(data => {
+                if (data.avatar_shape && data.is_initialized) {
+                    // Only update if shape has changed
+                    if (lastAvatarShape !== data.avatar_shape) {
+                        console.log(`Avatar shape changed: ${lastAvatarShape} -> ${data.avatar_shape}`);
+                        updateAvatar(data.avatar_shape);
+                        lastAvatarShape = data.avatar_shape;
+                    }
+                    
+                    // Update sentiment display if available
+                    if (data.sentiment) {
+                        updateSentiment(data.sentiment);
+                    }
+                    
+                    // Update emotion bars if available
+                    if (data.emotions) {
+                        updateEmotionBars(data.emotions);
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error polling avatar:', error);
+            });
+    }
+
+    // Add this new function to update sentiment visualization
+    function updateSentiment(sentimentData) {
+        const avatar = document.getElementById('avatar');
+        
+        // Remove existing sentiment classes
+        avatar.classList.remove('sentiment-positive', 'sentiment-negative', 'sentiment-neutral', 'sentiment-angry');
+        
+        // Add the appropriate sentiment class
+        if (sentimentData.sentiment === "positive") {
+            avatar.classList.add('sentiment-positive');
+        } else if (sentimentData.sentiment === "negative") {
+            avatar.classList.add('sentiment-negative');
+        } else if (sentimentData.sentiment === "angry") {
+            avatar.classList.add('sentiment-angry');
+        } else {
+            avatar.classList.add('sentiment-neutral');
+        }
+        
+        console.log(`Updated sentiment display: ${sentimentData.sentiment}`);
     }
 });

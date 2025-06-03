@@ -3,3 +3,4 @@ nltk
 google-generativeai
 python-dotenv
 flask
+azure-ai-textanalytics

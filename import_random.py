@@ -1,9 +1,9 @@
 import random
-import nltk  # Import NLTK for basic NLP tasks
+import nltk
 import os
-from dotenv import load_dotenv  # For loading environment variables from .env file
-import google.generativeai as genai  # Add Google's Generative AI library
-import logging  # Add logging for better error tracking
+from dotenv import load_dotenv
+import google.generativeai as genai
+import logging
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -18,25 +18,79 @@ except LookupError:
     nltk.download('punkt')
     
 # Make sure punkt is downloaded before importing the rest
-nltk.download('punkt', quiet=True)  # Add this to ensure the tokenizer is available
+nltk.download('punkt', quiet=True)
 
-from transformers import pipeline  # Import Hugging Face Transformers
-from enum import Enum #import
+# Import transformers with error handling
+try:
+    from transformers import pipeline
+    transformers_available = True
+except ImportError:
+    logging.warning("Transformers library not available. Using fallback sentiment analysis.")
+    transformers_available = False
+
+from enum import Enum
 
 # --- 1. AI Core ---
 class GalateaAI:
     def __init__(self):
-        self.emotional_state = {"joy": 0.0, "sadness": 0.0, "anger": 0.0, "fear": 0.0, "curiosity": 0.0}
+        self.emotional_state = {"joy": 0.2, "sadness": 0.2, "anger": 0.2, "fear": 0.2, "curiosity": 0.2}
         self.knowledge_base = {}
         self.learning_rate = 0.05 # Reduced learning rate
-        # Specify exact model name for sentiment analysis to avoid warnings
-        self.sentiment_analyzer = pipeline("sentiment-analysis", 
-                                          model="distilbert/distilbert-base-uncased-finetuned-sst-2-english", 
-                                          revision="714eb0f")
         self.response_model = "A generic response" #Place Holder for the ML model
+        
+        # Initialize sentiment analyzer with fallback
+        self.initialize_sentiment_analyzer()
         
         # Initialize Gemini API
         self.initialize_gemini()
+        
+    def initialize_sentiment_analyzer(self):
+        """Initialize sentiment analysis with fallback options"""
+        if transformers_available:
+            try:
+                logging.info("Attempting to initialize Hugging Face sentiment analyzer")
+                # Try to initialize the pipeline with specific parameters
+                self.sentiment_analyzer = pipeline(
+                    "sentiment-analysis", 
+                    model="distilbert/distilbert-base-uncased-finetuned-sst-2-english"
+                )
+                logging.info("Hugging Face sentiment analyzer loaded successfully")
+            except Exception as e:
+                logging.error(f"Failed to initialize Hugging Face sentiment analyzer: {e}")
+                self.sentiment_analyzer = None
+        else:
+            self.sentiment_analyzer = None
+            
+    def analyze_sentiment(self, text):
+        # Use Hugging Face if available
+        if self.sentiment_analyzer is not None:
+            try:
+                result = self.sentiment_analyzer(text)[0]
+                sentiment = result['label']
+                score = result['score']
+                
+                if sentiment == 'POSITIVE':
+                    return score
+                else:
+                    return -score
+            except Exception as e:
+                logging.error(f"Error in sentiment analysis: {e}")
+                # Fall back to simple analysis
+        
+        # Simple fallback sentiment analysis
+        positive_words = ['good', 'great', 'excellent', 'happy', 'joy', 'love', 'like', 'wonderful']
+        negative_words = ['bad', 'terrible', 'sad', 'hate', 'dislike', 'awful', 'poor', 'angry']
+        
+        words = text.lower().split()
+        sentiment_score = 0.0
+        
+        for word in words:
+            if word in positive_words:
+                sentiment_score += 0.2
+            elif word in negative_words:
+                sentiment_score -= 0.2
+                
+        return max(-1.0, min(1.0, sentiment_score))  # Clamp between -1 and 1
         
     def initialize_gemini(self):
         """Initialize the Gemini API with API key from .env file"""
@@ -100,7 +154,6 @@ class GalateaAI:
             logging.error(f"Failed to initialize Gemini API: {e}")
             print(f"Failed to initialize Gemini API: {e}")
             self.gemini_available = False
-            # Don't completely fail - allow the system to run with fallback responses
 
     def process_input(self, user_input):
         sentiment_score = self.analyze_sentiment(user_input)
@@ -117,42 +170,23 @@ class GalateaAI:
         self.emotional_state["joy"] += sentiment_score * self.learning_rate
         self.emotional_state["sadness"] -= sentiment_score * self.learning_rate
 
-
         # Re-normalize
         total_emotion = sum(self.emotional_state.values())
         for emotion in self.emotional_state:
-            self.emotional_state[emotion] /= total_emotion if total_emotion > 0 else 1
+            self.emotional_state[emotion] = self.emotional_state[emotion] / total_emotion if total_emotion > 0 else 0.2
 
         self.update_knowledge(keywords, user_input)
         response = self.generate_response(intent, keywords, self.emotional_state, user_input)
         return response
 
-    def analyze_sentiment(self, text):
-        # Leverage Hugging Face's sentiment analysis pipeline
-        result = self.sentiment_analyzer(text)[0]  # Get result
-        sentiment = result['label']
-        score = result['score']
-
-        if sentiment == 'POSITIVE':
-            return score
-        else:
-            return -score  # Negative sentiment
-
     def extract_keywords(self, text):
-        # Attempt to download the specific resource mentioned in the error
-        try:
-            nltk.download('punkt_tab', quiet=True)
-        except:
-            pass
-        
         try:
             # Try using NLTK's tokenizer
             tokens = nltk.word_tokenize(text)
             keywords = [word.lower() for word in tokens if word.isalnum()]
             return keywords
-        except LookupError:
+        except Exception:
             # Fall back to a simple split-based approach if NLTK fails
-            # This is a simple alternative that doesn't require NLTK resources
             words = text.split()
             # Clean up words (remove punctuation)
             keywords = [word.lower().strip('.,!?;:()[]{}""\'') for word in words]
@@ -231,27 +265,32 @@ class GalateaAI:
             return "Interesting."
 
     def update_knowledge(self, keywords, user_input):
-      #for new key words remember them
+        #for new key words remember them
         for keyword in keywords:
             if keyword not in self.knowledge_base:
                 self.knowledge_base[keyword] = user_input
+
 
 # --- 2. Dialogue Engine ---
 class DialogueEngine:
     def __init__(self, ai_core):
         self.ai_core = ai_core
+        self.last_user_message = ""
 
     def get_response(self, user_input):
+        # Store the last message for sentiment analysis
+        self.last_user_message = user_input
+        
         ai_response = self.ai_core.process_input(user_input)
         styled_response = self.apply_style(ai_response, self.ai_core.emotional_state)
         return styled_response
 
     def apply_style(self, text, emotional_state):
-      style = self.get_style(emotional_state)
-      #selects styles based on emotions
-      #add style to text
-      styled_text = text + f" ({style})"
-      return styled_text
+        style = self.get_style(emotional_state)
+        #selects styles based on emotions
+        #add style to text
+        styled_text = text # Remove the style suffix to make responses cleaner
+        return styled_text
 
     def get_style(self, emotional_state):
         #determine style based on the state of the AI
@@ -260,13 +299,13 @@ class DialogueEngine:
 # --- 3. Avatar Engine ---
 
 class AvatarShape(Enum): #create shape types for the avatar
-  CIRCLE = "Circle"
-  TRIANGLE = "Triangle"
-  SQUARE = "Square"
+    CIRCLE = "Circle"
+    TRIANGLE = "Triangle"
+    SQUARE = "Square"
 
 class AvatarEngine:
     def __init__(self):
-        self.avatar_model = "Simple Circle"  # Start with a basic shape
+        self.avatar_model = "Circle"  # Start with a basic shape
         self.expression_parameters = {}
 
     def update_avatar(self, emotional_state):
@@ -290,27 +329,32 @@ class AvatarEngine:
         # Simple console rendering of the avatar state
         print(f"Avatar shape: {self.avatar_model}")
 
-# --- 4. Main Program Loop ---
-# Download NLTK data again before starting the main loop to ensure availability
-nltk.download('punkt', quiet=True)
+# REMOVE THE MAIN PROGRAM LOOP THAT BLOCKS EXECUTION
+# This is critical - the code below was causing the issue
+# by creating instances outside of the Flask app's control
 
-try:
-  nltk.data.find("tokenizers/punkt")
-except LookupError:
-  nltk.download('punkt')
+# instead, only run this if the script is executed directly
+if __name__ == "__main__":
+    # Download NLTK data again before starting the main loop to ensure availability
+    nltk.download('punkt', quiet=True)
 
-#Create
-galatea_ai = GalateaAI()
-dialogue_engine = DialogueEngine(galatea_ai)
-avatar_engine = AvatarEngine()
-avatar_engine.update_avatar(galatea_ai.emotional_state)
-# Initial avatar rendering
-avatar_engine.render_avatar()
+    try:
+        nltk.data.find("tokenizers/punkt")
+    except LookupError:
+        nltk.download('punkt')
 
-while True:
-    user_input = input("You: ")
-    response = dialogue_engine.get_response(user_input)
-    print(f"Galatea: {response}")
-
+    #Create
+    galatea_ai = GalateaAI()
+    dialogue_engine = DialogueEngine(galatea_ai)
+    avatar_engine = AvatarEngine()
     avatar_engine.update_avatar(galatea_ai.emotional_state)
+    # Initial avatar rendering
     avatar_engine.render_avatar()
+
+    while True:
+        user_input = input("You: ")
+        response = dialogue_engine.get_response(user_input)
+        print(f"Galatea: {response}")
+
+        avatar_engine.update_avatar(galatea_ai.emotional_state)
+        avatar_engine.render_avatar()

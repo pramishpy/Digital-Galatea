@@ -328,3 +328,70 @@ body {
         min-width: 80px;
     }
 }
+
+/* Add these styles to your CSS file */
+
+.sentiment-indicator {
+    position: absolute;
+    bottom: 15%;
+    width: 40%;
+    height: 20%;
+    border-radius: 50%;
+    left: 30%;
+    transition: all 0.5s ease;
+    opacity: 0;
+}
+
+.sentiment-positive .mouth {
+    border-radius: 0 0 100px 100px;
+    height: 20px;
+    width: 40%;
+    left: 30%;
+    top: 65%;
+}
+
+.sentiment-negative .mouth {
+    border-radius: 100px 100px 0 0;
+    height: 20px;
+    width: 40%;
+    left: 30%;
+    top: 65%;
+}
+
+.sentiment-neutral .mouth {
+    height: 5px;
+    width: 40%;
+    left: 30%;
+    top: 70%;
+}
+
+/* Add these styles for angry expressions */
+
+.sentiment-angry .mouth {
+    border-radius: 0;  /* Straight line for mouth */
+    height: 5px;
+    width: 40%;
+    left: 30%;
+    top: 70%;
+    transform: rotate(-10deg);  /* Slight angle for angry look */
+    background-color: #ff3b30;  /* Red color for anger */
+}
+
+.sentiment-angry .eyes {
+    background-color: #ff3b30;  /* Red eyes for anger */
+}
+
+.sentiment-angry .face {
+    background-color: rgba(255, 59, 48, 0.2);  /* Light red tint */
+}
+
+/* Add angry pulsing animation */
+@keyframes angryPulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.sentiment-angry {
+    animation: angryPulse 0.5s infinite;
+}
